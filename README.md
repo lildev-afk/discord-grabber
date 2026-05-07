@@ -28,16 +28,16 @@ Perfect for learning about:
 ## 📸 Screenshots
 
 ### 🛠️ Builder Interface
-![Builder Interface](imgs/builder.png)
+![Builder Interface](imgs/ui.png)
 
 ### 📦 Built Application
-![Built Application](imgs/built.png)
+![Built Application](imgs/final.png)
 
 ### 🔍 Detections
 ![Detections](imgs/detections.png)
 
 ### 📊 Result
-![Result](imgs/result.png)
+![Result](imgs/output.png)
 
 ## 🚀 Installation
 
