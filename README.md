@@ -53,8 +53,8 @@ Perfect for learning about:
 
 3. **Clone the Repository** 📥
    ```bash
-   git clone https://github.com/yourusername/nomad.git
-   cd nomad
+   git clone https://github.com/lildev-afk/discord-grabber.git
+   cd discord-grabber
    ```
 
 4. **Run the Builder** ⚙️
